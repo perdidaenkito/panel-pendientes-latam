@@ -154,6 +154,18 @@
     background:transparent;color:var(--tomato);border-radius:10px;padding:2px 8px;
     width:130px;margin-top:5px;
   }
+  .deadline-input.limit{border-color:var(--mustard);color:#7A4E10;}
+  .deadline-input.real{border-color:var(--basil);color:var(--basil);}
+  .deadline-input.urgent{border-color:var(--tomato);color:var(--tomato);}
+
+  .priority-select{
+    font-family:'JetBrains Mono',monospace;font-size:10px;padding:2px 8px;border-radius:10px;
+    border:1px solid var(--line);background:rgba(34,30,23,0.06);color:var(--ink-soft);
+    cursor:pointer;margin-top:5px;
+  }
+  .priority-select.alta{background:var(--tomato-dim);color:var(--tomato);border-color:var(--tomato);font-weight:600;}
+  .priority-select.media{background:var(--mustard-dim);color:#7A4E10;border-color:var(--mustard);font-weight:600;}
+  .priority-select.baja{background:var(--basil-dim);color:var(--basil);border-color:var(--basil);font-weight:600;}
 
   /* ORG CHART */
   .orgwrap{overflow-x:auto;padding:10px 0 30px;}
@@ -193,6 +205,37 @@
   .org-task .date{font-family:'JetBrains Mono',monospace;font-size:10px;margin-top:3px;display:inline-block;}
   .org-task .date.limit{color:var(--mustard);}
   .org-task .date.real{color:var(--basil);}
+
+  .add-task-btn{
+    font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:0.4px;text-transform:uppercase;
+    padding:9px 18px;border-radius:6px;border:1px dashed rgba(247,242,231,0.4);
+    background:transparent;color:var(--paper);cursor:pointer;font-weight:600;margin-bottom:18px;
+  }
+  .add-task-btn:hover{border-color:var(--paper);}
+
+  .add-task-form{
+    background:var(--bg-deep-2);border:1px solid rgba(255,255,255,0.08);border-radius:8px;
+    padding:18px 20px;margin-bottom:22px;display:flex;flex-direction:column;gap:12px;
+  }
+  .add-task-form.hidden{display:none;}
+  .form-row{display:flex;flex-direction:column;gap:5px;}
+  .form-row label{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--steel);text-transform:uppercase;letter-spacing:0.4px;}
+  .form-row input, .form-row select{
+    font-family:'Inter',sans-serif;font-size:13.5px;padding:8px 10px;border-radius:5px;
+    border:1px solid rgba(255,255,255,0.15);background:var(--bg-deep);color:var(--paper);
+  }
+  .owner-checks{display:flex;gap:14px;flex-wrap:wrap;}
+  .owner-checks label{
+    display:flex;align-items:center;gap:6px;font-family:'Inter',sans-serif;font-size:13px;
+    color:var(--paper);text-transform:none;letter-spacing:normal;
+  }
+  .form-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:4px;}
+  .form-btn{
+    font-family:'Oswald',sans-serif;font-size:13px;text-transform:uppercase;letter-spacing:0.4px;
+    padding:9px 18px;border-radius:6px;border:none;cursor:pointer;font-weight:600;
+  }
+  .form-btn.save{background:var(--basil);color:var(--paper);}
+  .form-btn.cancel{background:transparent;color:var(--steel);border:1px solid rgba(255,255,255,0.2);}
 
   .footnote{
     text-align:center;color:var(--steel);font-family:'JetBrains Mono',monospace;
@@ -243,6 +286,46 @@
 
   <div class="filters" id="filters"></div>
 
+  <button id="add-task-btn" class="add-task-btn">+ Agregar pendiente</button>
+
+  <div id="add-task-form" class="add-task-form hidden">
+    <div class="form-row">
+      <label>Cliente / grupo</label>
+      <input id="af-group" list="group-suggestions" placeholder="ej. Coralsa, o uno nuevo">
+      <datalist id="group-suggestions"></datalist>
+    </div>
+    <div class="form-row">
+      <label>Descripción</label>
+      <input id="af-text" placeholder="¿Qué hay que hacer?">
+    </div>
+    <div class="form-row">
+      <label>Dueño(s)</label>
+      <div class="owner-checks">
+        <label><input type="checkbox" value="Diana"> Diana</label>
+        <label><input type="checkbox" value="Adri"> Adri</label>
+        <label><input type="checkbox" value="Caro"> Caro</label>
+        <label><input type="checkbox" value="Andrés"> Andrés</label>
+      </div>
+    </div>
+    <div class="form-row">
+      <label>Fecha límite (opcional)</label>
+      <input id="af-date" placeholder="ej. 20 jul">
+    </div>
+    <div class="form-row">
+      <label>Prioridad</label>
+      <select id="af-priority">
+        <option value="">Sin prioridad</option>
+        <option value="alta">Alta</option>
+        <option value="media">Media</option>
+        <option value="baja">Baja</option>
+      </select>
+    </div>
+    <div class="form-actions">
+      <button id="af-cancel" class="form-btn cancel">Cancelar</button>
+      <button id="af-save" class="form-btn save">Guardar pendiente</button>
+    </div>
+  </div>
+
   <div class="view" id="view-cliente">
     <div class="rail" id="rail"></div>
   </div>
@@ -268,18 +351,17 @@
 const LIMIT_DATE = "Máx: mar 14 jul";
 
 const DATA = [
-  { group: "PCSAPI — Corto plazo", tasks: [
+  { group: "PCSAPI", tasks: [
     { id:"pc1", text:"Enviar update mensual", owner:"Diana", date:"07 jul", real:true },
     { id:"pc2", text:"Enviar reporte ejecutivo y newsletters", owner:"Diana", date:"10 jul", real:true },
     { id:"pc3", text:"Desarrollar y presentar análisis experimental de reúso de caja de pizza", owner:"Diana", date:LIMIT_DATE },
-  ]},
-  { group: "PCSAPI — Mediano plazo / en marcha", tasks: [
     { id:"pm1", text:"Definir deadline del deployment de apariencia", owner:"Diana", date:null, needsDeadline:true },
     { id:"pm2", text:"Conectar el deployment de apariencia con resultados de operaciones", owner:"Diana", date:LIMIT_DATE },
     { id:"pm3", text:"Nuevo diseño de reporte distrital", owner:"Diana", date:LIMIT_DATE },
     { id:"pm4", text:"Reporte de las nuevas mediciones", owner:"Diana", date:LIMIT_DATE },
     { id:"pm5", text:"Llamadas distritales", owner:"Adri", date:LIMIT_DATE },
   ]},
+  { group: "Tropical Smoothie Café", tasks: [] },
   { group: "LC Perú", tasks: [
     { id:"lc1", text:"Revisar stock antes de enviar PCs", owner:"Diana", date:LIMIT_DATE },
     { id:"lc2", text:"Enviar 8 PCs", owner:"Diana", date:"jul", real:true },
@@ -325,7 +407,7 @@ const DATA = [
   { group: "Proyecto: Dashboard Macro → Micro — Acciones de presión (follow-ups)", tasks: [
     { id:"dm2", text:"Presionar para que avancen las instalaciones en República Dominicana", owner:["Diana","Adri","Caro"], date:LIMIT_DATE },
     { id:"dm3", text:"Presionar a David para que hable con Diego (RD) — vía para desatorar las instalaciones", owner:["Diana","Adri","Caro"], date:LIMIT_DATE },
-    { id:"dm4", text:"Presionar a Andrés para que llame a Amazon", owner:["Diana","Adri","Caro"], date:LIMIT_DATE },
+    { id:"dm4", text:"Llamar a Amazon", owner:"Andrés", date:LIMIT_DATE },
   ]},
 ];
 
@@ -366,7 +448,8 @@ const WORKER_URL = "https://latam-slack-relay.aarboleda.workers.dev";
 const OWNER_SLACK_IDS = {
   "Diana": "U05UK0F3HM1",
   "Adri": "U0AEMB3KD97",
-  "Caro": "U0B6MRCKRF1"
+  "Caro": "U0B6MRCKRF1",
+  "Andrés": "U043B99M7ND"
 };
 const LIMIT_DATE_OBJ = new Date("2026-07-14T00:00:00");
 const WARN_FROM = new Date("2026-07-13T00:00:00"); // avisa desde 1 día antes del límite
@@ -414,7 +497,17 @@ function startPolling(){
   }, POLL_MS);
 }
 
-function allTasks(){ return DATA.flatMap(g => g.tasks.map(t => ({...t, group: g.group}))); }
+function getGroups(){
+  const map = new Map();
+  DATA.forEach(g => map.set(g.group, { group: g.group, tasks: [...g.tasks] }));
+  (state.customTasks || []).forEach(ct => {
+    if (!map.has(ct.group)) map.set(ct.group, { group: ct.group, tasks: [] });
+    map.get(ct.group).tasks.push(ct);
+  });
+  return Array.from(map.values());
+}
+
+function allTasks(){ return getGroups().flatMap(g => g.tasks.map(t => ({...t, group: g.group}))); }
 
 function ownerMatches(task, filter){
   if (filter === "Todos") return true;
@@ -450,12 +543,33 @@ function renderKPIs(){
   document.getElementById('kpi-total').textContent = total;
   document.getElementById('kpi-done').textContent = done;
   document.getElementById('kpi-nodate').textContent = nodate;
-  document.getElementById('kpi-clients').textContent = DATA.length;
+  document.getElementById('kpi-clients').textContent = getGroups().length;
   document.getElementById('kpi-bar').style.width = Math.round((done/total)*100) + '%';
 }
 
-const PROJECT_GROUPS = DATA.filter(g => g.group.startsWith("Proyecto:"));
-const CLIENT_GROUPS = DATA.filter(g => !g.group.startsWith("Proyecto:"));
+function renderDateControl(t){
+  const override = state['deadline_' + t.id];
+  const hasOverride = override !== undefined && override !== '';
+  const displayVal = hasOverride ? override : (t.date && t.date !== LIMIT_DATE ? t.date : '');
+  const placeholder = t.date === LIMIT_DATE ? LIMIT_DATE.toLowerCase() : 'poner fecha';
+  let cls = '';
+  if (hasOverride) cls = 'real';
+  else if (t.date === LIMIT_DATE) cls = 'limit';
+  else if (t.urgent) cls = 'urgent';
+  return `<input class="deadline-input ${cls}" placeholder="${placeholder}" value="${displayVal}" data-deadline-for="${t.id}">`;
+}
+
+function renderPriorityControl(t){
+  const val = state['priority_' + t.id] || '';
+  const opts = [
+    ['', 'Prioridad'],
+    ['alta', 'Alta'],
+    ['media', 'Media'],
+    ['baja', 'Baja'],
+  ];
+  const optionsHtml = opts.map(([v, label]) => `<option value="${v}" ${v === val ? 'selected' : ''}>${label}</option>`).join('');
+  return `<select class="priority-select ${val}" data-priority-for="${t.id}">${optionsHtml}</select>`;
+}
 
 function renderRail(containerId, groups){
   const rail = document.getElementById(containerId);
@@ -485,17 +599,8 @@ function renderRail(containerId, groups){
       const li = document.createElement('li');
       li.className = 'task' + (state[t.id] ? ' done' : '') + (hide ? ' hidden' : '');
 
-      let dateBadge = '';
-      if (t.needsDeadline){
-        const val = state['deadline_'+t.id] || '';
-        dateBadge = `<input class="deadline-input" placeholder="${LIMIT_DATE.toLowerCase()}" value="${val}" data-deadline-for="${t.id}">`;
-      } else if (t.date === LIMIT_DATE){
-        dateBadge = `<span class="badge date limit">${t.date}</span>`;
-      } else if (t.date){
-        dateBadge = `<span class="badge date${t.urgent ? ' urgent' : ''}">${t.date}</span>`;
-      } else {
-        dateBadge = `<span class="badge nodate">sin fecha</span>`;
-      }
+      const dateBadge = renderDateControl(t);
+      const priorityControl = renderPriorityControl(t);
 
       li.innerHTML = `
         <div class="punch ${state[t.id] ? 'done' : ''}" data-id="${t.id}"></div>
@@ -504,6 +609,7 @@ function renderRail(containerId, groups){
           <div class="task-meta">
             <span class="badge owner">${ownerLabel(t)}</span>
             ${dateBadge}
+            ${priorityControl}
           </div>
         </div>
       `;
@@ -530,12 +636,23 @@ function renderRail(containerId, groups){
   rail.querySelectorAll('.deadline-input').forEach(inp => {
     inp.addEventListener('change', async () => {
       const id = inp.dataset.deadlineFor;
+      const wasEmpty = !state['deadline_' + id];
       state['deadline_' + id] = inp.value;
       await saveState();
-      if (inp.value){
+      if (inp.value && wasEmpty){
         const task = allTasks().find(t => t.id === id);
         if (task) sendSlackAlert(task.owner, `📅 Nueva fecha límite asignada a "${task.text}": ${inp.value}`);
       }
+      render();
+    });
+  });
+
+  rail.querySelectorAll('.priority-select').forEach(sel => {
+    sel.addEventListener('change', async () => {
+      const id = sel.dataset.priorityFor;
+      state['priority_' + id] = sel.value;
+      await saveState();
+      render();
     });
   });
 }
@@ -585,10 +702,69 @@ function renderOrgChart(){
 function render(){
   renderFilters();
   renderKPIs();
-  renderRail('rail', CLIENT_GROUPS);
-  renderRail('rail-proyecto', PROJECT_GROUPS);
+  const groups = getGroups();
+  const clientGroups = groups.filter(g => !g.group.startsWith("Proyecto:"));
+  const projectGroups = groups.filter(g => g.group.startsWith("Proyecto:"));
+  renderRail('rail', clientGroups);
+  renderRail('rail-proyecto', projectGroups);
   renderOrgChart();
+  populateGroupSuggestions();
 }
+
+function populateGroupSuggestions(){
+  const dl = document.getElementById('group-suggestions');
+  if (!dl) return;
+  const names = Array.from(new Set(getGroups().map(g => g.group)));
+  dl.innerHTML = names.map(n => `<option value="${n}"></option>`).join('');
+}
+
+function genTaskId(){
+  return 'custom_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+const addTaskBtn = document.getElementById('add-task-btn');
+const addTaskForm = document.getElementById('add-task-form');
+
+addTaskBtn.addEventListener('click', () => {
+  addTaskForm.classList.toggle('hidden');
+});
+
+document.getElementById('af-cancel').addEventListener('click', () => {
+  addTaskForm.classList.add('hidden');
+});
+
+document.getElementById('af-save').addEventListener('click', async () => {
+  const group = document.getElementById('af-group').value.trim();
+  const text = document.getElementById('af-text').value.trim();
+  const date = document.getElementById('af-date').value.trim();
+  const priority = document.getElementById('af-priority').value;
+  const ownerChecks = Array.from(document.querySelectorAll('.owner-checks input:checked')).map(c => c.value);
+
+  if (!group || !text || ownerChecks.length === 0){
+    alert('Falta cliente/grupo, descripción, o al menos un dueño.');
+    return;
+  }
+
+  const id = genTaskId();
+  const owner = ownerChecks.length === 1 ? ownerChecks[0] : ownerChecks;
+  const newTask = { id, group, text, owner, date: date || null };
+
+  if (!state.customTasks) state.customTasks = [];
+  state.customTasks.push(newTask);
+  if (priority) state['priority_' + id] = priority;
+  await saveState();
+
+  sendSlackAlert(owner, `🆕 Nuevo pendiente asignado: ${text} [${group}]${date ? ' — fecha: ' + date : ''}`);
+
+  document.getElementById('af-group').value = '';
+  document.getElementById('af-text').value = '';
+  document.getElementById('af-date').value = '';
+  document.getElementById('af-priority').value = '';
+  document.querySelectorAll('.owner-checks input').forEach(c => c.checked = false);
+  addTaskForm.classList.add('hidden');
+
+  render();
+});
 
 function stampDate(){
   const d = new Date();
