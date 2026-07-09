@@ -333,15 +333,85 @@ let state = {};
 let activeFilter = "Todos";
 let activeView = "cliente";
 
+const JSONBIN_BIN_ID  = "6a4e8bc1da38895dfe41c7eb";
+const JSONBIN_API_KEY = "$2a$10$SLFuA7zg059kr/9opAe49.9K7kQkRBrAP1nhnc2YkbcaeWVs3tKge";
+const JSONBIN_URL      = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
+const POLL_MS           = 4000;
+let saving = false;
+
 async function loadState(){
   try{
-    const res = await window.storage.get('task-state', false);
-    state = res ? JSON.parse(res.value) : {};
-  }catch(e){ state = {}; }
+    const res = await fetch(`${JSONBIN_URL}/latest`, { headers: { 'X-Master-Key': JSONBIN_API_KEY } });
+    const json = await res.json();
+    state = json.record || {};
+  }catch(e){ console.error('No se pudo cargar el estado remoto', e); }
 }
 async function saveState(){
-  try{ await window.storage.set('task-state', JSON.stringify(state), false); }
-  catch(e){ console.error('No se pudo guardar', e); }
+  saving = true;
+  try{
+    await fetch(JSONBIN_URL, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_API_KEY },
+      body: JSON.stringify(state)
+    });
+  }catch(e){ console.error('No se pudo guardar el estado remoto', e); }
+  finally{ saving = false; }
+}
+/* ============================================================
+   ALERTAS SLACK — vía Cloudflare Worker (mantiene el token oculto)
+   1. Sigue las instrucciones para desplegar el worker
+   2. Pega aquí la URL de tu worker
+   ============================================================ */
+const WORKER_URL = "https://latam-slack-relay.aarboleda.workers.dev";
+const OWNER_SLACK_IDS = {
+  "Diana": "U05UK0F3HM1",
+  "Adri": "U0AEMB3KD97",
+  "Caro": "U0B6MRCKRF1"
+};
+const LIMIT_DATE_OBJ = new Date("2026-07-14T00:00:00");
+const WARN_FROM = new Date("2026-07-13T00:00:00"); // avisa desde 1 día antes del límite
+
+function slackIdsFor(owner){
+  const names = Array.isArray(owner) ? owner : [owner];
+  return names.map(n => OWNER_SLACK_IDS[n]).filter(Boolean);
+}
+
+async function sendSlackAlert(owner, message){
+  const ids = slackIdsFor(owner);
+  if (ids.length === 0 || WORKER_URL.includes("TU-WORKER")) return;
+  await Promise.all(ids.map(userId =>
+    fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, message })
+    }).catch(e => console.error('No se pudo avisar a', userId, e))
+  ));
+}
+
+async function checkDeadlineAlerts(){
+  const today = new Date();
+  if (today < WARN_FROM) return;
+  let changed = false;
+  allTasks().forEach(t => {
+    if (state[t.id]) return; // ya completada, no avisar
+    if (t.date !== LIMIT_DATE) return; // solo tareas con el límite general
+    const key = 'alerted_limit_' + t.id;
+    if (state[key]) return;
+    const overdue = today >= LIMIT_DATE_OBJ;
+    sendSlackAlert(t.owner, `${overdue ? '🔴 Tarea VENCIDA' : '⏰ Tarea cerca del límite (14 jul)'}: ${t.text} [${t.group}]`);
+    state[key] = true;
+    changed = true;
+  });
+  if (changed) await saveState();
+}
+
+function startPolling(){
+  setInterval(async () => {
+    if (saving) return;
+    const prev = JSON.stringify(state);
+    await loadState();
+    if (JSON.stringify(state) !== prev) render();
+  }, POLL_MS);
 }
 
 function allTasks(){ return DATA.flatMap(g => g.tasks.map(t => ({...t, group: g.group}))); }
@@ -446,16 +516,26 @@ function renderRail(containerId, groups){
   rail.querySelectorAll('.punch').forEach(p => {
     p.addEventListener('click', async () => {
       const id = p.dataset.id;
-      state[id] = !state[id];
+      const nowDone = !state[id];
+      state[id] = nowDone;
       await saveState();
+      if (nowDone){
+        const task = allTasks().find(t => t.id === id);
+        if (task) sendSlackAlert(task.owner, `✅ Tarea completada: ${task.text} [${task.group}]`);
+      }
       render();
     });
   });
 
   rail.querySelectorAll('.deadline-input').forEach(inp => {
     inp.addEventListener('change', async () => {
-      state['deadline_' + inp.dataset.deadlineFor] = inp.value;
+      const id = inp.dataset.deadlineFor;
+      state['deadline_' + id] = inp.value;
       await saveState();
+      if (inp.value){
+        const task = allTasks().find(t => t.id === id);
+        if (task) sendSlackAlert(task.owner, `📅 Nueva fecha límite asignada a "${task.text}": ${inp.value}`);
+      }
     });
   });
 }
@@ -530,6 +610,8 @@ document.querySelectorAll('.view-btn').forEach(btn => {
   stampDate();
   await loadState();
   render();
+  startPolling();
+  checkDeadlineAlerts();
 })();
 </script>
 </body>
