@@ -280,8 +280,8 @@ const COLOR_TEZONTLE = "#8FAFB8";
 let HITOS = [
   {fecha:"29 jun", titulo:"Semana 1 — Línea base", desc:"Auditoría inicial completada", estado:"done"},
   {fecha:"6 jul", titulo:"Semana 2 — Ajustes", desc:"Retroalimentación a tiendas", estado:"progress"},
-  {fecha:"13 jul", titulo:"Semana 3 — Evaluación final", desc:"Corte de cierre del piloto", estado:"pending"},
-  {fecha:"20 jul", titulo:"Decisión", desc:"Presentación de resultados a Carl's Jr", estado:"pending"}
+  {fecha:"26 jul", titulo:"Semana 3 — Evaluación final", desc:"Corte de cierre del piloto", estado:"pending"},
+  {fecha:"27 jul", titulo:"Decisión", desc:"Presentación de resultados a Carl's Jr", estado:"pending"}
 ];
 
 let charts = {};
@@ -411,6 +411,15 @@ function fmtFecha(f){
   if(!d || isNaN(d)) return f || "";
   return d.toLocaleDateString("es-MX", {day:"numeric", month:"short"});
 }
+function fmtHora(f){
+  // Las celdas de solo-hora en Google Sheets vienen con fecha base 1899-12-30 (su "día cero");
+  // aquí solo nos interesa la parte de la hora, así que la formateamos en 12h con AM/PM.
+  if(!f) return "";
+  if(/^\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?$/i.test(String(f).trim())) return f; // ya viene como texto plano
+  const d = parseLocalDate(f);
+  if(!d || isNaN(d)) return f || "";
+  return d.toLocaleTimeString("es-MX", {hour:"numeric", minute:"2-digit", second:"2-digit", hour12:true});
+}
 
 function renderStats(resumen, kpis){
   const val = (name) => {
@@ -464,7 +473,7 @@ function groupByTiendaSeries(tendencias, valueCol){
   return {labels: fechas.map(fmtFecha), series};
 }
 
-function lineChart(canvasId, data, yLabel){
+function lineChart(canvasId, data, yLabel, yScale){
   if(charts[canvasId]) charts[canvasId].destroy();
   const ctx = document.getElementById(canvasId);
   charts[canvasId] = new Chart(ctx, {
@@ -480,13 +489,13 @@ function lineChart(canvasId, data, yLabel){
       responsive:true, maintainAspectRatio:false,
       interaction:{mode:"index", intersect:false},
       plugins:{legend:{display:false}, tooltip:{mode:"index", intersect:false}},
-      scales:{y:{title:{display:!!yLabel,text:yLabel}}}
+      scales:{y:Object.assign({title:{display:!!yLabel,text:yLabel}}, yScale||{})}
     }
   });
 }
 
 function renderScoreDiario(tendencias){
-  lineChart("chartScoreDiario", groupByTiendaSeries(tendencias, "Score General (%)"), "%");
+  lineChart("chartScoreDiario", groupByTiendaSeries(tendencias, "Score General (%)"), "%", {min:0, max:100, ticks:{stepSize:25}});
 }
 function renderExperiencia(tendencias){
   lineChart("chartExperiencia", groupByTiendaSeries(tendencias, "Mediana Experiencia Cliente (min)"), "min");
@@ -667,7 +676,7 @@ function renderCasoTimeline(pedidoId){
         <div class="step">
           <div class="step-head">
             <span class="step-name">${s.detalle||""}</span>
-            <span class="step-time">${s.hora||""}</span>
+            <span class="step-time">${fmtHora(s.hora)}</span>
           </div>
           ${s.nota ? `<div class="callout muted" style="margin:4px 0;">${nl2br(s.nota)}</div>` : ""}
           ${s.video_link ? `<a href="${s.video_link}" target="_blank" rel="noopener">Ver video →</a>` : ""}
